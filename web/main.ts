@@ -398,7 +398,11 @@ async function loadPages() {
   }
 }
 
+/** Bumped by every select(); a detail that arrives after the user picked another page is dropped. */
+let selectSeq = 0
+
 async function select(urlHash: string, keepVersion = false) {
+  const seq = ++selectSeq
   state.selected = urlHash
   state.asOf = undefined
   if (!keepVersion) {
@@ -408,12 +412,21 @@ async function select(urlHash: string, keepVersion = false) {
   renderPages()
   // keep the page-list query in the verify panel, drop the previous page's queries
   source.ran = source.ran.filter((r) => r.spec.name === "Watched pages")
+  let detail: PageDetail
   try {
-    state.detail = await source.detail(urlHash, trust())
+    detail = await source.detail(urlHash, trust())
   } catch (e) {
-    banner(readErrorHtml(e), "error")
+    if (seq === selectSeq) banner(readErrorHtml(e), "error")
     return
   }
+  if (seq !== selectSeq) return
+  state.detail = detail
+  // Only this page's queries (plus the page list) in the verify panel, newest copy of each.
+  const keep = new Map<string, (typeof source.ran)[number]>()
+  for (const r of source.ran) {
+    if (r.spec.name === "Watched pages" || queryText(r.spec).includes(urlHash)) keep.set(queryText(r.spec), r)
+  }
+  source.ran = [...keep.values()]
   if (state.version === undefined) {
     const top = state.detail.snapshots.find((s) => isTrusted(s.creator)) ?? state.detail.snapshots[0]
     state.version = top?.version

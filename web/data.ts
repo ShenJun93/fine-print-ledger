@@ -64,9 +64,11 @@ export class ArkivSource implements DataSource {
     this.cache.clear()
   }
 
-  private async run(spec: QuerySpec, withPayload: boolean): Promise<Entity[]> {
+  private async run(spec: QuerySpec, withPayload: boolean, sink?: Ran[]): Promise<Entity[]> {
     const r = await fetchAll(this.client, spec, { withPayload })
-    this.ran.push({ spec, rows: r.entities.length, pages: r.pages, block: r.blockNumber, withPayload })
+    const ran = { spec, rows: r.entities.length, pages: r.pages, block: r.blockNumber, withPayload }
+    this.ran.push(ran)
+    sink?.push(ran)
     return r.entities
   }
 
@@ -82,18 +84,19 @@ export class ArkivSource implements DataSource {
       this.ran.push(...hit.ran)
       return hit.detail
     }
-    const before = this.ran.length
+    // Collected locally: another page's detail may be loading at the same time.
+    const mine: Ran[] = []
     const [s, d, c] = await Promise.all([
-      this.run(snapshotsQuery(urlHash, trust), true),
-      this.run(diffsQuery(urlHash, trust), true),
-      this.run(citationsQuery(urlHash), true),
+      this.run(snapshotsQuery(urlHash, trust), true, mine),
+      this.run(diffsQuery(urlHash, trust), true, mine),
+      this.run(citationsQuery(urlHash), true, mine),
     ])
     const detail = {
       snapshots: s.map(decodeSnapshot).sort(byVersionDesc),
       diffs: d.map(decodeDiff).sort((a, b) => b.toVersion - a.toVersion),
       citations: c.map(decodeCitation).sort((a, b) => b.citedAt - a.citedAt),
     }
-    this.cache.set(cacheKey, { detail, ran: this.ran.slice(before) })
+    this.cache.set(cacheKey, { detail, ran: mine })
     return detail
   }
 
