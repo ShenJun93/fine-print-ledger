@@ -8,6 +8,37 @@ Windows 11, Tiramisu testnet (chain 7738577), 2026-10-11.
 
 ---
 
+## 1. Uppercase letters in attribute names pass the SDK but revert on chain (and the error says they are allowed)
+
+- **Surface:** TypeScript SDK (`createEntity` / `executeBatch`, attribute-name validation, revert decoding) and the
+  Tiramisu engine. This one blocked every write we had.
+- **Versions:** `@arkiv-network/sdk` 0.8.1, `viem` 2.57.4, Node 24.20.0, Tiramisu (chain 7738577), block ~416,093,
+  2026-10-11, from the funded snapshotter `0x517bf78c3000991FFbCdf06305F3881382437e98`.
+- **Expected:** a camelCase attribute name such as `checkedAt` is either written, or rejected before sending with a message
+  that says names must be lowercase. The SDK says it is valid: `isValidAttributeName("checkedAt") === true`; the grammar in
+  `src/attr/names.ts` is `/^[A-Za-z][A-Za-z0-9._-]*$/`.
+- **Actual:** the engine reverts. The SDK decodes the engine's `Ident32InvalidByte(position, value)` and words it with its
+  own charset string (`src/utils/revert.ts`, `CHARSET`), which lists `"A"-"Z"` as allowed, so the message contradicts itself:
+  `Transaction failed: an attribute name holds "A" (0x41) at byte 7, which is outside the name charset ("A"-"Z", "a"-"z",
+  "0"-"9", ".", "-" and "_", with a letter first) <- execution reverted`.
+  Our first real `seed` failed this way for all 5 pages (`"C" (0x43) at byte 4`, i.e. `lastCheckedAt`).
+- **Minimal repro** ([`scripts/repro-uppercase-attr.ts`](../scripts/repro-uppercase-attr.ts), `npx tsx scripts/repro-uppercase-attr.ts`):
+  one `createEntity` with `{ repro: "fpl-attr-case", checkedAt: u64(1) }`, then the same with `checked_at`.
+  ```
+  attribute "checkedAt": SDK isValidAttributeName -> true
+    FAIL Transaction failed: an attribute name holds "A" (0x41) at byte 7, which is outside the name charset (...) <- execution reverted
+  attribute "checked_at": SDK isValidAttributeName -> true
+    OK   tx 0x14cc44dc68519f55461d2ce64776edf3f7488e6bfb5844bbeb92d29ad045c508  entity 0x96a79f3821fbd0b380d673bd34c56e628f4b2de87601562f0406d078301567ec
+  ```
+  The failing call returned no transaction hash (it reverted during gas estimation), so it cost nothing.
+- **Fix (either):** make the engine accept `A`-`Z` as the SDK grammar and the message say; or make the SDK grammar
+  `/^[a-z][a-z0-9._-]*$/`, so `createEntity` throws `InvalidAttributeNameError` before sending, fix `CHARSET` in
+  `revert.ts`, and say "lowercase only" in the docs. The README example names (`category`, `version`, `score`) are all
+  lowercase, which hides the problem.
+- **What we did:** renamed every attribute to lowercase snake_case (`url_hash`, `fetched_at`, `content_hash`, …) and added a
+  unit test that fails if any attribute the app writes or queries contains a non-lowercase character
+  ([`test/entities-plan-queries.test.ts`](../test/entities-plan-queries.test.ts), "attribute names").
+
 ## 2. `$createdAt` cannot be range-filtered through the SDK, but the node accepts it
 
 - **Surface:** TypeScript SDK (query builder) vs Direct JSON-RPC; challenge docs.
