@@ -33,7 +33,7 @@
     "event": "build-with-ai-basics",
     "why": "Organiser announcements; posts here can move deadlines or change submission requirements.",
     "ignore": [
-      "^d+ (days?|hours?|minutes?|months?) ago$",
+      "^\\d+ (days?|hours?|minutes?|months?) ago$",
       "^(a|an) (day|hour|minute|month) ago$"
     ]
   },
@@ -42,7 +42,7 @@
     "event": "build-with-ai-basics",
     "why": "Devpost official rules page; organisers can edit it during the contest.",
     "ignore": [
-      "^d+ (days?|hours?|minutes?|months?) ago$",
+      "^\\d+ (days?|hours?|minutes?|months?) ago$",
       "^(a|an) (day|hour|minute|month) ago$"
     ]
   },
@@ -51,7 +51,7 @@
     "event": "nebius-nvidia-global-ai",
     "why": "Organiser announcements, including prize reminders and judging changes.",
     "ignore": [
-      "^d+ (days?|hours?|minutes?|months?) ago$",
+      "^\\d+ (days?|hours?|minutes?|months?) ago$",
       "^(a|an) (day|hour|minute|month) ago$"
     ]
   },
@@ -60,7 +60,7 @@
     "event": "amazon-build-ship-shape",
     "why": "Organiser announcements; an FAQ tab was added mid-contest.",
     "ignore": [
-      "^d+ (days?|hours?|minutes?|months?) ago$",
+      "^\\d+ (days?|hours?|minutes?|months?) ago$",
       "^(a|an) (day|hour|minute|month) ago$"
     ]
   },
@@ -69,7 +69,7 @@
     "event": "gitlab-transcend",
     "why": "Organiser announcements during the build window.",
     "ignore": [
-      "^d+ (days?|hours?|minutes?|months?) ago$",
+      "^\\d+ (days?|hours?|minutes?|months?) ago$",
       "^(a|an) (day|hour|minute|month) ago$"
     ]
   }
