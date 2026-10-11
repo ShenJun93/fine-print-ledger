@@ -51,6 +51,9 @@ deployed or submitted.
   server HTML (checked). No headless browser on purpose: the normalizer must be reproducible by anyone with `fetch`.
 - Devpost's WAF returns 403 to non-browser requests that send `Accept: text/html,...;q=0.9`; the fetcher sends no custom
   Accept header (works as of 2026-10-11).
+- The Zindi page has live counters ("1106 joined", "162 active", "21 days left") that changed between two fetches minutes
+  apart. `targets.json` gives it public ignore patterns, stored in the page entity payload and applied by `verify`.
+  Other 4 seeds were byte-identical across two fetches.
 - Snapshot schedule is manual (`seed`), not a cron, because nothing may be deployed from here.
 - `BUILD-NOTES.md` is committed for the owner; remove it before making the repo public if preferred.
 
