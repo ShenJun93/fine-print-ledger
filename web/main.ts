@@ -390,7 +390,11 @@ async function loadPages() {
     else renderVerify()
   } catch (e) {
     banner(readErrorHtml(e), "error")
+    if (state.pages.length === 0) $("pages").innerHTML = `<p class="muted small">Not loaded: see the message above.</p>`
     renderVerify()
+    // Rate limited: try once more shortly after the budget resets.
+    const wait = rateLimitedFor(e)
+    if (wait !== undefined) setTimeout(() => void loadPages(), (wait + 5) * 1000)
   }
 }
 
