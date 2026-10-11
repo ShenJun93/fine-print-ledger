@@ -35,6 +35,10 @@ Windows 11, Tiramisu testnet (chain 7738577), 2026-10-11.
   `/^[a-z][a-z0-9._-]*$/`, so `createEntity` throws `InvalidAttributeNameError` before sending, fix `CHARSET` in
   `revert.ts`, and say "lowercase only" in the docs. The README example names (`category`, `version`, `score`) are all
   lowercase, which hides the problem.
+- **Already reported upstream** (found when we searched before filing): an earlier camelCase report on the skills repo
+  ([Arkiv-Network/skills#14](https://github.com/Arkiv-Network/skills/issues/14), closed 2026-10-03 with a docs note)
+  and the open engine issue [Arkiv-Network/arkiv#114](https://github.com/Arkiv-Network/arkiv/issues/114) "fix: allow
+  uppercase attribute names". As of SDK 0.8.1 the SDK grammar and the revert message still disagree with the engine.
 - **What we did:** renamed every attribute to lowercase snake_case (`url_hash`, `fetched_at`, `content_hash`, …) and added a
   unit test that fails if any attribute the app writes or queries contains a non-lowercase character
   ([`test/entities-plan-queries.test.ts`](../test/entities-plan-queries.test.ts), "attribute names").
@@ -141,6 +145,8 @@ Windows 11, Tiramisu testnet (chain 7738577), 2026-10-11.
   **5 rows**, the same query with a bare `1` (`version = i32(1)`) returns **0 rows**, with no error or warning. A
   forgotten `u64()` silently empties a page of the UI.
 - **Repro:** [`scripts/readback.ts`](../scripts/readback.ts) (last block of the script), read-only.
+- **Already reported upstream:** [Arkiv-Network/arkiv-sdk-js#113](https://github.com/Arkiv-Network/arkiv-sdk-js/issues/113)
+  proposes an SDK warning for untyped values in predicates; our numbers above are one more data point for it.
 - **Fix:** have the node either match numeric literals across integer types, or reject a comparison whose literal type
   differs from the stored type for that name (it knows the stored type from `attributeSchema`).
 - **What we did:** every numeric attribute and every numeric literal in queries goes through `u64()`
