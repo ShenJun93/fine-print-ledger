@@ -116,7 +116,7 @@ export class FixtureSource implements DataSource {
 
   private of(type: string, urlHash?: string) {
     return this.entities.filter(
-      (e) => e.attributes?.type?.value === type && (urlHash === undefined || e.attributes?.urlHash?.value === urlHash),
+      (e) => e.attributes?.type?.value === type && (urlHash === undefined || e.attributes?.url_hash?.value === urlHash),
     )
   }
 

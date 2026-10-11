@@ -71,7 +71,7 @@ timestamped, hash-checked, readonly copy of each public rules page on Arkiv and 
 by anyone without our server.
 
 **Challenges I ran into.** The SDK refuses `$createdAt` range predicates that the node accepts, so we store our own
-`fetchedAt`; an unfunded wallet surfaces as "Execution error without revert data" with the real reason five causes deep;
+`fetched_at`; an unfunded wallet surfaces as "Execution error without revert data" with the real reason five causes deep;
 Devpost's WAF rejected our first fetcher; keeping snapshot and diff consistent required predicting the snapshot's entity key
 so the diff can reference it inside the same atomic batch. Details in `arkiv/friction.md`.
 
@@ -86,9 +86,9 @@ decide which evidence stays alive. What stays off Arkiv on purpose: raw HTML and
 normalizer is open source so anyone can re-derive the hash), the private key, and any personal data.
 
 **How do you use Arkiv?** (each with code)
-- Attributes vs payload: everything filtered on is a typed attribute (`u64` for `fetchedAt`, `version`, `changedAt`); text and
+- Attributes vs payload: everything filtered on is a typed attribute (`u64` for `fetched_at`, `version`, `changed_at`); text and
   diffs are payloads. `src/core/entities.ts`.
-- Queries: compound `app + type + urlHash` predicates, `fetchedAt <= u64(T)` range for "what did it say at time T",
+- Queries: compound `app + type + url_hash` predicates, `fetched_at <= u64(T)` range for "what did it say at time T",
   `createdBy(snapshotter)`, cursor pagination with client-side sorting (no ORDER BY). `src/core/queries.ts`, `web/data.ts`.
 - Batch writes: snapshot + diff + page patch + page extension in one `executeBatch`; diff references the new snapshot via
   `predictEntityKeys`. `src/core/plan.ts`, `src/cli/snapshotter.ts`.
@@ -106,7 +106,7 @@ and renews page leases; the only creator the app trusts. (Citations can come fro
 **How can judges reproduce your Arkiv usage?**
 1. `git clone <repo> && cd fine-print-ledger && npm install && npm test`.
 2. `npm run snap -- status` lists the pages written by `0x517b…7e98`.
-3. Open the live app, pick a page and a version; the page shows "sha256 recomputed in your browser matches contentHash".
+3. Open the live app, pick a page and a version; the page shows "sha256 recomputed in your browser matches content_hash".
 4. In "Verify it yourself", copy the curl command and run it: same entities, straight from the Tiramisu RPC.
 5. `npm run snap -- verify <url>` re-fetches the live page and compares it to the latest snapshot.
 6. `npm run snap -- seed --dry-run` prints the exact batch (attributes, flags, lifetimes, predicted keys) a check would write.

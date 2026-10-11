@@ -258,7 +258,7 @@ async function history(client: PublicArkivClient, url: string) {
 /**
  * Independent verification: fetch the page now, normalize it with the same code, and compare its
  * hash to the trusted snapshot (latest, or as of --at). Also re-hashes the stored payload to
- * prove the snapshot's contentHash attribute matches its own content.
+ * prove the snapshot's content_hash attribute matches its own content.
  */
 async function verify(client: PublicArkivClient, url: string, at?: string) {
   const uh = await urlHash(url)
@@ -275,7 +275,7 @@ async function verify(client: PublicArkivClient, url: string, at?: string) {
   const storedHash = await sha256Hex(stored)
   console.log(`snapshot v${snap.version}  fetched ${iso(snap.fetchedAt)}  key ${snap.key}`)
   console.log(`creator  ${snap.creator}  ${trustedCreators().some((c) => c.toLowerCase() === snap.creator.toLowerCase()) ? "(trusted snapshotter)" : "(NOT TRUSTED)"}`)
-  console.log(`payload hash ${storedHash === snap.contentHash ? "matches" : "DOES NOT MATCH"} contentHash attribute ${snap.contentHash}`)
+  console.log(`payload hash ${storedHash === snap.contentHash ? "matches" : "DOES NOT MATCH"} content_hash attribute ${snap.contentHash}`)
   // Apply the same public ignore patterns the snapshotter applied (read from the page entity).
   const page = await findPage(client, uh, trust())
   if (page?.ignore.length) console.log(`ignore patterns (from the page entity): ${page.ignore.join("  ")}`)

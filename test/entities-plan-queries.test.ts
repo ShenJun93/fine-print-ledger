@@ -47,8 +47,8 @@ describe("entity builders", () => {
       latestContentHash: "ff",
       ignore: ["^\\d+ joined$"],
     })
-    expect(c.attributes).toMatchObject({ app: APP, type: "page", urlHash: "ab", event: "demo-cup" })
-    expect(c.attributes?.lastCheckedAt).toEqual(u64(1760000000))
+    expect(c.attributes).toMatchObject({ app: APP, type: "page", url_hash: "ab", event: "demo-cup" })
+    expect(c.attributes?.last_checked_at).toEqual(u64(1760000000))
     expect(c.contentType).toBe("application/json")
     expect(JSON.parse(new TextDecoder().decode(c.payload))).toEqual({
       url: "https://example.org/rules",
@@ -73,9 +73,9 @@ describe("entity builders", () => {
       encoded,
       salt: 7n,
     })
-    expect(c.attributes?.fetchedAt).toEqual(u64(1760000000))
+    expect(c.attributes?.fetched_at).toEqual(u64(1760000000))
     expect(c.attributes?.version).toEqual(u64(3))
-    expect(c.attributes?.sizeBytes).toEqual(u64(10))
+    expect(c.attributes?.size_bytes).toEqual(u64(10))
     expect(c.flags).toEqual({ readonly: true, permissionlessExtension: true })
     expect(c.expires.minLifetime).toBe(BigInt(LIFETIME_DAYS.snapshot) * BLOCKS_PER_DAY)
     expect(c.salt).toBe(7n)
@@ -96,8 +96,8 @@ describe("entity builders", () => {
       toSnapshot: KEY_B,
       unified: "--- v1\n+++ v2\n",
     })
-    expect(c.attributes?.fromSnapshot).toEqual({ type: "key", value: KEY_A })
-    expect(c.attributes?.toSnapshot).toEqual({ type: "key", value: KEY_B })
+    expect(c.attributes?.from_snapshot).toEqual({ type: "key", value: KEY_A })
+    expect(c.attributes?.to_snapshot).toEqual({ type: "key", value: KEY_B })
     expect(c.expires.minLifetime).toBe(BigInt(LIFETIME_DAYS.diff) * BLOCKS_PER_DAY)
   })
 
@@ -124,16 +124,16 @@ describe("entity builders", () => {
       attributes: {
         app: str(APP),
         type: str("page"),
-        urlHash: str("ab"),
-        lastCheckedAt: u64(1760000000),
-        latestVersion: u64(4),
+        url_hash: str("ab"),
+        last_checked_at: u64(1760000000),
+        latest_version: u64(4),
       },
       payload: jsonToPayload({ url: "https://example.org/rules", title: "Rules" }),
       contentType: "application/json",
     })
     const p = decodePage(e)
     expect(p).toMatchObject({ key: KEY_P, latestVersion: 4, lastCheckedAt: 1760000000, url: "https://example.org/rules" })
-    const s = decodeSnapshot(new Entity({ attributes: { version: u64(2), fetchedAt: u64(5) } }))
+    const s = decodeSnapshot(new Entity({ attributes: { version: u64(2), fetched_at: u64(5) } }))
     expect(s.version).toBe(2)
     expect(s.fetchedAt).toBe(5)
   })
@@ -229,11 +229,11 @@ describe("planCheck", () => {
     expect(snap?.attributes?.type).toBe("snapshot")
     expect(snap?.attributes?.version).toEqual(u64(2))
     expect(diff?.attributes?.type).toBe("diff")
-    expect(diff?.attributes?.fromSnapshot).toEqual({ type: "key", value: KEY_A })
-    expect(diff?.attributes?.toSnapshot).toEqual({ type: "key", value: KEY_B })
-    expect(diff?.attributes?.addedLines).toEqual(u64(1))
-    expect(diff?.attributes?.removedLines).toEqual(u64(1))
-    expect(p.batch.patches[0]?.set?.latestVersion).toEqual(u64(2))
+    expect(diff?.attributes?.from_snapshot).toEqual({ type: "key", value: KEY_A })
+    expect(diff?.attributes?.to_snapshot).toEqual({ type: "key", value: KEY_B })
+    expect(diff?.attributes?.added_lines).toEqual(u64(1))
+    expect(diff?.attributes?.removed_lines).toEqual(u64(1))
+    expect(p.batch.patches[0]?.set?.latest_version).toEqual(u64(2))
     // the page payload is rewritten with the ignore patterns this check applied
     const pagePayload = JSON.parse(new TextDecoder().decode(p.batch.patches[0]!.payload!))
     expect(pagePayload).toMatchObject({ url, event: "demo-cup", ignore: [] })
@@ -251,14 +251,14 @@ describe("queries (built offline; no request is sent)", () => {
     expect(builderFor(client, spec, false).toString()).toBe(text)
     expect(text).toContain("app = str('fpl')")
     expect(text).toContain("type = str('snapshot')")
-    expect(text).toContain(`urlHash = str('${uh}')`)
-    expect(text).toContain("fetchedAt >= u64(1760000000)")
-    expect(text).toContain("fetchedAt <= u64(1760086400)")
+    expect(text).toContain(`url_hash = str('${uh}')`)
+    expect(text).toContain("fetched_at >= u64(1760000000)")
+    expect(text).toContain("fetched_at <= u64(1760086400)")
     expect(text.toLowerCase()).toContain(`$creator = addr(${SNAPSHOTTER.toLowerCase()})`.toLowerCase())
   })
 
   it("as-of query is a numeric range on fetchedAt", () => {
-    expect(queryText(asOfQuery(uh, 1760050000, TRUST))).toContain("fetchedAt <= u64(1760050000)")
+    expect(queryText(asOfQuery(uh, 1760050000, TRUST))).toContain("fetched_at <= u64(1760050000)")
   })
 
   it("several trusted creators become an OR group; 'any' drops the creator filter", () => {
@@ -274,6 +274,49 @@ describe("queries (built offline; no request is sent)", () => {
     expect(cmd).toContain('"method":"arkiv_query"')
     expect(cmd).toContain("https://rpc.tiramisu.db-chain.testnet.arkiv.network")
     expect(cmd).toContain(JSON.stringify(queryText(spec)).slice(1, -1).replaceAll("'", "'\\''"))
+  })
+})
+
+describe("attribute names", () => {
+  // Tiramisu rejects uppercase bytes in attribute names even though SDK 0.8.1 accepts them
+  // (arkiv/friction.md #1). Every name we write or query must be lowercase.
+  const LOWER = /^[a-z][a-z0-9._]*$/
+
+  it("every attribute written by every builder and every patch is lowercase", async () => {
+    const url = "https://example.org/rules"
+    const encoded = await encodeText("t")
+    const creates = [
+      buildPageCreate({ url, urlHash: "ab", domain: "d", event: "e", title: "t", checkedAt: 1, latestVersion: 1, latestContentHash: "ff", ignore: [] }),
+      buildSnapshotCreate({ urlHash: "ab", domain: "d", event: "e", fetchedAt: 1, version: 1, contentHash: "ff", sizeBytes: 1, encoded }),
+      buildDiffCreate({ urlHash: "ab", domain: "d", event: "e", fromVersion: 1, toVersion: 2, changedAt: 1, addedLines: 1, removedLines: 1, fromSnapshot: KEY_A, toSnapshot: KEY_B, unified: "" }),
+      buildCitationCreate({ urlHash: "ab", snapshotKey: KEY_A, version: 1, contentHash: "ff", citedAt: 1, note: "n" }),
+    ]
+    const changed = await planCheck(
+      { url, event: "e", title: "t", text: "b", fetchedAt: 2, page: await pageRecord(url, 1), latest: { record: await snapshotRecord(url, "a", 1), text: "a" } },
+      [{ key: KEY_B, salt: 1n }, { key: KEY_A, salt: 2n }],
+    )
+    const names = [
+      ...creates.flatMap((c) => Object.keys(c.attributes ?? {})),
+      ...changed.batch.creates.flatMap((c) => Object.keys(c.attributes ?? {})),
+      ...changed.batch.patches.flatMap((p) => Object.keys(p.set ?? {})),
+    ]
+    expect(names.length).toBeGreaterThan(20)
+    expect(names.filter((n) => !LOWER.test(n))).toEqual([])
+  })
+
+  it("every attribute referenced by a query is lowercase", () => {
+    const uh = "ab"
+    const texts = [
+      queryText(snapshotsQuery(uh, TRUST, { fetchedAt: { from: 1, to: 2 }, version: { from: 1 } })),
+      queryText(asOfQuery(uh, 1, TRUST)),
+      queryText(pagesQuery(TRUST)),
+      queryText(citationsQuery(uh)),
+    ]
+    const refs = texts.flatMap((t) =>
+      [...t.matchAll(/(?:^|AND |\()([A-Za-z_][\w.]*) (?:=|<=|>=)/g)].map((m) => m[1]!),
+    )
+    expect(refs.length).toBeGreaterThan(5)
+    expect(refs.filter((n) => !LOWER.test(n))).toEqual([])
   })
 })
 

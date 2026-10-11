@@ -170,7 +170,7 @@ async function renderDetail() {
       <h2>${esc(page.title || page.url)}</h2>
       ${url ? `<a class="mono small" href="${esc(url)}" target="_blank" rel="noopener noreferrer nofollow">${esc(url)}</a>` : ""}
       <div class="kv small">
-        <span>urlHash <code>${esc(short(page.urlHash, 8))}</code></span>
+        <span>url_hash <code>${esc(short(page.urlHash, 8))}</code></span>
         <span>last checked ${esc(fmt(page.lastCheckedAt))}</span>
         <span title="Entity Expiration of the page watch. Each re-check renews it (Lifetime Extension).">watch lease ends ≈ ${esc(fmtDay(leaseEnd))} (block ${page.expiresAt})</span>
         ${creatorBadge(page.creator)}
@@ -290,8 +290,8 @@ async function fillSnapshotBody(s: SnapshotRecord, diff: DiffRecord | undefined)
     if (hc)
       hc.innerHTML =
         h === s.contentHash
-          ? `<span class="okc">✓ sha256 recomputed in your browser matches contentHash</span>`
-          : `<span class="badc">✗ payload hash ${esc(h.slice(0, 12))} ≠ contentHash ${esc(s.contentHash.slice(0, 12))}</span>`
+          ? `<span class="okc">✓ sha256 recomputed in your browser matches content_hash</span>`
+          : `<span class="badc">✗ payload hash ${esc(h.slice(0, 12))} ≠ content_hash ${esc(s.contentHash.slice(0, 12))}</span>`
   } catch (e) {
     if (hc) hc.textContent = `could not decode payload: ${(e as Error).message}`
   }

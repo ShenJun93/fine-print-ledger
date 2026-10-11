@@ -34,9 +34,9 @@ Only public page text is stored: no participant data, no HTML, no scripts.
 ```
 
 - **Trust comes from `$creator` only.** The web app queries with `createdBy(0x517b…7e98)` and labels every other creator
-  as untrusted. Anyone can write an entity with the same `urlHash` and `event`; toggle "Also show entities from other
+  as untrusted. Anyone can write an entity with the same `url_hash` and `event`; toggle "Also show entities from other
   creators" to see them flagged in red.
-- **Verify it yourself.** The browser re-hashes every snapshot payload and compares it with its `contentHash`. The
+- **Verify it yourself.** The browser re-hashes every snapshot payload and compares it with its `content_hash`. The
   side panel prints the exact query string, a curl command and an SDK snippet for everything on screen, and the CLI can
   re-fetch the live page and compare (`npm run snap -- verify <url>`).
 - **Entity Expiration follows the product.** Page watches are 30-day leases renewed by each check; snapshots live 180
@@ -103,7 +103,7 @@ entity builders, for development before the wallet is funded.
 
 1. `npm install && npm test`.
 2. `npm run snap -- status`: shows the snapshotter `0x517bf78c3000991FFbCdf06305F3881382437e98` and the pages it has written.
-3. Open the web app, pick a page, pick a version. Check "sha256 recomputed in your browser matches contentHash".
+3. Open the web app, pick a page, pick a version. Check "sha256 recomputed in your browser matches content_hash".
 4. Copy the curl command from "Verify it yourself" into a terminal: it returns the same entities straight from the RPC.
 5. `npm run snap -- verify <url>`: re-fetches the live page and tells you whether it still matches the latest snapshot.
 6. On the explorer, open the snapshotter address to see the creation transactions:

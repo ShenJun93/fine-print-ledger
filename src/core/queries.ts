@@ -67,7 +67,7 @@ export function pagesQuery(trust: TrustMode, opts: { domain?: string } = {}): Qu
 export function pageByUrlHashQuery(urlHash: string, trust: TrustMode): QuerySpec {
   return {
     name: "Page by urlHash",
-    filters: [...baseFilter(ENTITY_TYPES.page), eq("urlHash", urlHash)],
+    filters: [...baseFilter(ENTITY_TYPES.page), eq("url_hash", urlHash)],
     trust,
   }
 }
@@ -82,8 +82,8 @@ export function snapshotsQuery(
     name: "Snapshots of a page",
     filters: [
       ...baseFilter(ENTITY_TYPES.snapshot),
-      eq("urlHash", urlHash),
-      ...rangeFilter("fetchedAt", opts.fetchedAt),
+      eq("url_hash", urlHash),
+      ...rangeFilter("fetched_at", opts.fetchedAt),
       ...rangeFilter("version", opts.version),
     ],
     trust,
@@ -96,8 +96,8 @@ export function asOfQuery(urlHash: string, at: number, trust: TrustMode): QueryS
     name: `Snapshots fetched at or before ${new Date(at * 1000).toISOString()}`,
     filters: [
       ...baseFilter(ENTITY_TYPES.snapshot),
-      eq("urlHash", urlHash),
-      lte("fetchedAt", u64(at)),
+      eq("url_hash", urlHash),
+      lte("fetched_at", u64(at)),
     ],
     trust,
   }
@@ -108,7 +108,7 @@ export function snapshotByVersionQuery(urlHash: string, version: number, trust: 
     name: `Snapshot v${version}`,
     filters: [
       ...baseFilter(ENTITY_TYPES.snapshot),
-      eq("urlHash", urlHash),
+      eq("url_hash", urlHash),
       eq("version", u64(version)),
     ],
     trust,
@@ -120,8 +120,8 @@ export function diffsQuery(urlHash: string, trust: TrustMode, opts: { changedAt?
     name: "Diffs of a page",
     filters: [
       ...baseFilter(ENTITY_TYPES.diff),
-      eq("urlHash", urlHash),
-      ...rangeFilter("changedAt", opts.changedAt),
+      eq("url_hash", urlHash),
+      ...rangeFilter("changed_at", opts.changedAt),
     ],
     trust,
   }
@@ -131,7 +131,7 @@ export function diffsQuery(urlHash: string, trust: TrustMode, opts: { changedAt?
 export function recentDiffsQuery(since: number, trust: TrustMode): QuerySpec {
   return {
     name: "Changes since",
-    filters: [...baseFilter(ENTITY_TYPES.diff), gte("changedAt", u64(since))],
+    filters: [...baseFilter(ENTITY_TYPES.diff), gte("changed_at", u64(since))],
     trust,
   }
 }
@@ -143,7 +143,7 @@ export function recentDiffsQuery(since: number, trust: TrustMode): QuerySpec {
 export function citationsQuery(urlHash: string): QuerySpec {
   return {
     name: "Citations of a page (any creator)",
-    filters: [...baseFilter(ENTITY_TYPES.citation), eq("urlHash", urlHash)],
+    filters: [...baseFilter(ENTITY_TYPES.citation), eq("url_hash", urlHash)],
     trust: { kind: "any" },
   }
 }

@@ -8,7 +8,7 @@ Windows 11, Tiramisu testnet (chain 7738577), 2026-10-11.
 
 ---
 
-## 1. `$createdAt` cannot be range-filtered through the SDK, but the node accepts it
+## 2. `$createdAt` cannot be range-filtered through the SDK, but the node accepts it
 
 - **Surface:** TypeScript SDK (query builder) vs Direct JSON-RPC; challenge docs.
 - **Expected:** the challenge `AGENTS.md` says "There is no server-side ordering (no `orderBy`); sort on the client,
@@ -30,10 +30,10 @@ Windows 11, Tiramisu testnet (chain 7738577), 2026-10-11.
 - **Fix:** decide which is true. If the node indexes `$createdAt`, add it to `QUERYABLE_SYSTEM_ATTRIBUTES` (typed `u64`,
   a block number). If it does not (and the result above is a scan or an accident), reject it on the node and fix the
   challenge docs.
-- **What we did:** store our own `fetchedAt` (u64 unix seconds) and range-filter on that. We would have done this anyway,
+- **What we did:** store our own `fetched_at` (u64 unix seconds) and range-filter on that. We would have done this anyway,
   because "when the page was fetched" is the fact we need, not "when the block landed".
 
-## 2. An unfunded wallet surfaces as "Execution error without revert data"
+## 3. An unfunded wallet surfaces as "Execution error without revert data"
 
 - **Surface:** TypeScript SDK (`createEntity` / `executeBatch`), error reporting.
 - **Expected:** an error that says the account has no GLM for gas.
@@ -55,7 +55,7 @@ Windows 11, Tiramisu testnet (chain 7738577), 2026-10-11.
 - **What we did:** the CLI checks the balance before any write and prints the full cause chain
   ([`rootCause`, `requireFunds` in `src/cli/snapshotter.ts`](../src/cli/snapshotter.ts)).
 
-## 3. Query syntax errors come back as JSON-RPC code -32003, which viem calls "Transaction creation failed"
+## 4. Query syntax errors come back as JSON-RPC code -32003, which viem calls "Transaction creation failed"
 
 - **Surface:** Direct JSON-RPC (`arkiv_query`) through viem's `client.request`.
 - **Expected:** a query parse error reported as invalid params (-32602) or a dedicated query error code.
@@ -73,7 +73,7 @@ Windows 11, Tiramisu testnet (chain 7738577), 2026-10-11.
   `i32()` validates), so this only bites people who paste queries, which is exactly what our "verify it yourself" panel
   invites them to do.
 
-## 4. `contentType` with a charset parameter is rejected
+## 5. `contentType` with a charset parameter is rejected
 
 - **Surface:** TypeScript SDK (`createEntity`).
 - **Expected:** `text/plain; charset=utf-8` accepted. The error message itself cites RFC 2045, whose grammar allows parameters.
@@ -81,11 +81,11 @@ Windows 11, Tiramisu testnet (chain 7738577), 2026-10-11.
   and be lowercase only (e.g. "text/plain").` The check is `MIME_REGEX` in `src/utils/arkivTransactions.ts`
   (`type/subtype` only). It fires before any network write, so it costs nothing, but it means a reader cannot learn the
   payload's encoding from the entity.
-- **Repro:** the snippet from entry 2 with `contentType: "text/plain; charset=utf-8"` (fails before gas estimation).
+- **Repro:** the snippet from entry 3 with `contentType: "text/plain; charset=utf-8"` (fails before gas estimation).
 - **Fix:** allow `; key=value` parameters, or say in the error that parameters are not supported.
 - **What we did:** document "payloads are UTF-8" in `arkiv/schema.md`.
 
-## 5. Payload compression exists in the SDK but is not reachable
+## 6. Payload compression exists in the SDK but is not reachable
 
 - **Surface:** TypeScript SDK (payloads, 128 KiB limit).
 - **Expected:** with a 128 KiB payload cap (`MAX_PAYLOAD_BYTES`), a public helper to compress and decompress payloads.
@@ -99,7 +99,7 @@ Windows 11, Tiramisu testnet (chain 7738577), 2026-10-11.
   ([`src/core/payload.ts`](../src/core/payload.ts)), so the browser can decode it without a library. None of our five
   seed pages needed it (largest normalized text: 9.4 KB).
 
-## 6. A bare number in a query is `i32`, so it must match how you wrote the attribute
+## 7. A bare number in a query is `i32`, so it must match how you wrote the attribute
 
 - **Surface:** TypeScript SDK (attributes and query builder).
 - **Expected:** this is documented (`toValue`: number → `i32`), but it is easy to miss when the attribute was written as
@@ -110,7 +110,7 @@ Windows 11, Tiramisu testnet (chain 7738577), 2026-10-11.
 - **What we did:** every numeric attribute and every numeric literal in queries goes through `u64()`
   ([`rangeFilter` in `src/core/queries.ts`](../src/core/queries.ts)), and a unit test pins the rendered strings.
 
-## 7. `ExpiryExtended` does not say who extended
+## 8. `ExpiryExtended` does not say who extended
 
 - **Surface:** WebSocket entity events (`watchEntityEvents`), creation flags.
 - **Expected:** for entities created with `permissionlessExtension`, the event identifies the extender, since that is the
@@ -121,7 +121,7 @@ Windows 11, Tiramisu testnet (chain 7738577), 2026-10-11.
 - **What we did:** the live feed shows "lifetime extended" with the transaction link; the citation entity (created in the same
   batch as the extension) carries the citer as its `$creator`, which is what we display.
 
-## 8. Explorer link formats are not documented
+## 9. Explorer link formats are not documented
 
 - **Surface:** Block Explorer (`tiramisu.explorer.arkiv.network`).
 - **Expected:** documented deep-link formats for an entity, a transaction and an address.
@@ -144,4 +144,4 @@ Windows 11, Tiramisu testnet (chain 7738577), 2026-10-11.
 
 Still to test once the snapshotter wallet is funded (results will be added here, not assumed): batch writes with
 predicted keys landing as predicted, `readonly` + `permissionlessExtension` flags read back, Lifetime Extension by a second
-wallet, cursor pagination over more than 50 rows, and the `i32` vs `u64` match from entry 6.
+wallet, cursor pagination over more than 50 rows, and the `i32` vs `u64` match from entry 7.
