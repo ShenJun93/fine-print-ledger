@@ -59,8 +59,7 @@ Page leases expire around 2026-11-10 (renewed by every re-check); snapshots arou
 4. Owner: create the public GitHub repo, push, deploy to Vercel (static: `npm run build`, output `dist/`), record the URL.
 5. Demo video (≤ 3 min): problem (Zindi data page / Devpost "we reserve the right to update"), seed run, web app timeline +
    hash check + verify panel curl, untrusted toggle, live feed, citation extending a snapshot.
-6. Fill the Devfolio form (drafts below). First Arkiv entity: written within 2 hours of starting work on the code
-   (the repro entity), so "2 hours or less" is defensible; owner to confirm.
+6. Fill the Devfolio form (drafts below).
 
 ## Open issues / known limits
 
