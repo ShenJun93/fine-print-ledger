@@ -35,8 +35,10 @@ export type CheckInput = {
   url: string
   event: string
   title: string
-  /** Normalized page text. */
+  /** Normalized page text, with the ignore patterns already applied. */
   text: string
+  /** The public ignore patterns that were applied (stored on the page entity). */
+  ignore?: string[] | undefined
   /** Unix seconds. */
   fetchedAt: number
   /** The trusted page entity, if this URL is already watched. */
@@ -84,6 +86,7 @@ export async function planCheck(input: CheckInput, predicted: PredictedKey[] = [
         checkedAt: input.fetchedAt,
         latestVersion: 1,
         latestContentHash: contentHash,
+        ignore: input.ignore ?? [],
       }),
     )
     creates.push(
@@ -113,10 +116,17 @@ export async function planCheck(input: CheckInput, predicted: PredictedKey[] = [
   }
 
   const pageKey = input.page.key
+  const pageMeta = {
+    url,
+    title: input.title || input.page.title,
+    event: input.event,
+    ignore: input.ignore ?? [],
+  }
   const latest = input.latest
   if (latest && latest.record.contentHash === contentHash) {
     patches.push(
       buildPagePatch(pageKey, {
+        ...pageMeta,
         checkedAt: input.fetchedAt,
         latestVersion: latest.record.version,
         latestContentHash: contentHash,
@@ -177,6 +187,7 @@ export async function planCheck(input: CheckInput, predicted: PredictedKey[] = [
   }
   patches.push(
     buildPagePatch(pageKey, {
+      ...pageMeta,
       checkedAt: input.fetchedAt,
       latestVersion: version,
       latestContentHash: contentHash,

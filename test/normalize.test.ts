@@ -1,5 +1,15 @@
 import { describe, expect, it } from "vitest"
-import { decodeEntities, extractTitle, normalizeHtml, normalizeText } from "../src/core/normalize"
+import { applyIgnore, decodeEntities, extractTitle, normalizeHtml, normalizeText } from "../src/core/normalize"
+
+describe("applyIgnore", () => {
+  it("drops whole lines matching public ignore patterns (live counters), keeps the rest", () => {
+    const text = "Prize: $10,000\n1106 joined\n162 active\n21 days left\nTeam size: 5"
+    expect(applyIgnore(text, ["^[\\d,]+ (joined|active)$", "^\\d+ (days?|hours?) left$"])).toBe(
+      "Prize: $10,000\nTeam size: 5",
+    )
+    expect(applyIgnore(text, [])).toBe(text)
+  })
+})
 
 const PAGE = `<!doctype html>
 <html><head><title>Demo Cup &amp; Prize — Rules</title>

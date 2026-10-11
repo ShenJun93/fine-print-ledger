@@ -31,6 +31,8 @@ export type PageInput = {
   checkedAt: number
   latestVersion: number
   latestContentHash: string
+  /** Public line-ignore patterns applied before hashing (see normalize.applyIgnore). */
+  ignore: string[]
 }
 
 export type SnapshotInput = {
@@ -87,7 +89,7 @@ export function buildPageCreate(p: PageInput): CreateEntityParameters {
       latestVersion: u64(p.latestVersion),
       latestContentHash: p.latestContentHash,
     },
-    payload: jsonToPayload({ url: p.url, title: p.title, event: p.event }),
+    payload: pagePayload(p),
     contentType: "application/json",
     expires: lifetime(LIFETIME_DAYS.page),
     // Anyone may renew a watch lease, e.g. a participant who wants the page kept on the ledger.
@@ -95,10 +97,20 @@ export function buildPageCreate(p: PageInput): CreateEntityParameters {
   }
 }
 
-/** Re-check of an existing page: record the check and the latest version. */
+function pagePayload(p: Pick<PageInput, "url" | "title" | "event" | "ignore">): Uint8Array {
+  return jsonToPayload({ url: p.url, title: p.title, event: p.event, ignore: p.ignore })
+}
+
+/**
+ * Re-check of an existing page: record the check and the latest version, and rewrite the payload
+ * so the ignore patterns on chain are always the ones this check applied.
+ */
 export function buildPagePatch(
   pageKey: Hex,
-  p: Pick<PageInput, "checkedAt" | "latestVersion" | "latestContentHash">,
+  p: Pick<
+    PageInput,
+    "checkedAt" | "latestVersion" | "latestContentHash" | "url" | "title" | "event" | "ignore"
+  >,
 ): PatchEntityParameters {
   return {
     entityKey: pageKey,
@@ -107,6 +119,8 @@ export function buildPagePatch(
       latestVersion: u64(p.latestVersion),
       latestContentHash: p.latestContentHash,
     },
+    payload: pagePayload(p),
+    contentType: "application/json",
   }
 }
 
@@ -237,16 +251,19 @@ export type PageRecord = Meta & {
   latestContentHash: string
   url: string
   title: string
+  ignore: string[]
 }
 
 export function decodePage(e: Entity): PageRecord {
   const a = e.attributes
   let url = ""
   let title = ""
+  let ignore: string[] = []
   try {
     const j = e.payload ? e.toJson() : {}
     url = typeof j.url === "string" ? j.url : ""
     title = typeof j.title === "string" ? j.title : ""
+    if (Array.isArray(j.ignore)) ignore = j.ignore.filter((x: unknown) => typeof x === "string")
   } catch {
     /* untrusted payload: leave blank */
   }
@@ -260,6 +277,7 @@ export function decodePage(e: Entity): PageRecord {
     latestContentHash: attrStr(a, "latestContentHash"),
     url,
     title,
+    ignore,
   }
 }
 

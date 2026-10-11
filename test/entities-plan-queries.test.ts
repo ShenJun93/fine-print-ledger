@@ -45,6 +45,7 @@ describe("entity builders", () => {
       checkedAt: 1760000000,
       latestVersion: 1,
       latestContentHash: "ff",
+      ignore: ["^\\d+ joined$"],
     })
     expect(c.attributes).toMatchObject({ app: APP, type: "page", urlHash: "ab", event: "demo-cup" })
     expect(c.attributes?.lastCheckedAt).toEqual(u64(1760000000))
@@ -53,6 +54,7 @@ describe("entity builders", () => {
       url: "https://example.org/rules",
       title: "Rules",
       event: "demo-cup",
+      ignore: ["^\\d+ joined$"],
     })
     expect(c.expires.minLifetime).toBe(BigInt(LIFETIME_DAYS.page) * BLOCKS_PER_DAY)
     expect(c.flags).toEqual({ permissionlessExtension: true })
@@ -154,6 +156,7 @@ async function pageRecord(url: string, latestVersion: number): Promise<PageRecor
     latestContentHash: "",
     url,
     title: "Rules",
+    ignore: [],
   }
 }
 
@@ -231,6 +234,9 @@ describe("planCheck", () => {
     expect(diff?.attributes?.addedLines).toEqual(u64(1))
     expect(diff?.attributes?.removedLines).toEqual(u64(1))
     expect(p.batch.patches[0]?.set?.latestVersion).toEqual(u64(2))
+    // the page payload is rewritten with the ignore patterns this check applied
+    const pagePayload = JSON.parse(new TextDecoder().decode(p.batch.patches[0]!.payload!))
+    expect(pagePayload).toMatchObject({ url, event: "demo-cup", ignore: [] })
     expect(p.batch.extensions).toHaveLength(1)
   })
 })

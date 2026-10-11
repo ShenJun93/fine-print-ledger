@@ -35,7 +35,7 @@ import {
   decodePage,
   decodeSnapshot,
 } from "../core/entities"
-import { sha256Hex, urlHash } from "../core/hash"
+import { canonicalUrl, sha256Hex, urlHash } from "../core/hash"
 import { decodeText } from "../core/payload"
 import { type CheckPlan, describeBatch, planCheck } from "../core/plan"
 import {
@@ -149,8 +149,25 @@ async function status(client: PublicArkivClient) {
   }
 }
 
+type Target = { url: string; event: string; ignore?: string[] }
+
+function loadTargets(): Target[] {
+  return JSON.parse(readFileSync(resolve(process.cwd(), "targets.json"), "utf8")) as Target[]
+}
+
+function targetFor(url: string): Target | undefined {
+  const c = canonicalUrl(url)
+  return loadTargets().find((t) => canonicalUrl(t.url) === c)
+}
+
+/** Ignore patterns for a URL: from targets.json if listed, else none. */
+function ignoreFor(url: string): string[] {
+  return targetFor(url)?.ignore ?? []
+}
+
 async function plan(client: PublicArkivClient, url: string, event: string, addr: Hex) {
-  const fetched = await fetchPage(url)
+  const ignore = ignoreFor(url)
+  const fetched = await fetchPage(url, ignore)
   const uh = await urlHash(fetched.url)
   const page = await findPage(client, uh, trust())
   const latest = page ? await findLatestSnapshot(client, page, trust()) : undefined
@@ -159,6 +176,7 @@ async function plan(client: PublicArkivClient, url: string, event: string, addr:
     event: page?.event || event,
     title: fetched.title,
     text: fetched.text,
+    ignore,
     fetchedAt: fetched.fetchedAt,
     page,
     latest,
@@ -207,10 +225,7 @@ function printPlan(p: CheckPlan, title: string) {
 }
 
 async function seed(client: PublicArkivClient, dryRun: boolean) {
-  const targets = JSON.parse(readFileSync(resolve(process.cwd(), "targets.json"), "utf8")) as {
-    url: string
-    event: string
-  }[]
+  const targets = loadTargets()
   const results: unknown[] = []
   for (const t of targets) {
     try {
@@ -261,7 +276,10 @@ async function verify(client: PublicArkivClient, url: string, at?: string) {
   console.log(`snapshot v${snap.version}  fetched ${iso(snap.fetchedAt)}  key ${snap.key}`)
   console.log(`creator  ${snap.creator}  ${trustedCreators().some((c) => c.toLowerCase() === snap.creator.toLowerCase()) ? "(trusted snapshotter)" : "(NOT TRUSTED)"}`)
   console.log(`payload hash ${storedHash === snap.contentHash ? "matches" : "DOES NOT MATCH"} contentHash attribute ${snap.contentHash}`)
-  const live = await fetchPage(url)
+  // Apply the same public ignore patterns the snapshotter applied (read from the page entity).
+  const page = await findPage(client, uh, trust())
+  if (page?.ignore.length) console.log(`ignore patterns (from the page entity): ${page.ignore.join("  ")}`)
+  const live = await fetchPage(url, page?.ignore ?? [])
   const liveHash = await sha256Hex(live.text)
   if (liveHash === snap.contentHash) {
     console.log(`live page now: IDENTICAL to v${snap.version}`)
@@ -331,7 +349,7 @@ async function main() {
       return status(client)
     case "snap":
       if (!arg) throw new Error("usage: snap <url> --event <slug> [--dry-run]")
-      await snap(client, arg, String(args.flags.event ?? "unspecified"), dryRun)
+      await snap(client, arg, String(args.flags.event ?? targetFor(arg)?.event ?? "unspecified"), dryRun)
       return
     case "seed":
       return seed(client, dryRun)

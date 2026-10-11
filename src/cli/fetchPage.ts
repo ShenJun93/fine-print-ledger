@@ -1,5 +1,5 @@
 import { canonicalUrl } from "../core/hash"
-import { extractTitle, normalizeHtml, normalizeText } from "../core/normalize"
+import { applyIgnore, extractTitle, normalizeHtml, normalizeText } from "../core/normalize"
 
 // "Mozilla/5.0 (compatible; ...)" is the conventional crawler form; some hosts (Devpost's WAF)
 // answer 403 to a user agent without it.
@@ -17,7 +17,7 @@ export type FetchedPage = {
 }
 
 /** Fetches a public page and returns its normalized text. Only public, unauthenticated GETs. */
-export async function fetchPage(input: string): Promise<FetchedPage> {
+export async function fetchPage(input: string, ignore: readonly string[] = []): Promise<FetchedPage> {
   const url = canonicalUrl(input)
   const res = await fetch(url, {
     // No custom Accept header: Devpost's WAF answers 403 to "text/html,...;q=0.9" from non-browsers.
@@ -36,7 +36,7 @@ export async function fetchPage(input: string): Promise<FetchedPage> {
     url,
     status: res.status,
     title: isHtml ? extractTitle(body) : "",
-    text: isHtml ? normalizeHtml(body) : normalizeText(body),
+    text: applyIgnore(isHtml ? normalizeHtml(body) : normalizeText(body), ignore),
     fetchedAt,
   }
 }

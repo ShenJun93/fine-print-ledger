@@ -2,7 +2,8 @@
   {
     "url": "https://zindi.world/competitions/bias-bounty-mapping-equity-challenge/data",
     "event": "zindi-bias-bounty-mapping-equity",
-    "why": "The data page still lists reference layers that the data bucket removed on 2026-09-25."
+    "why": "The data page still lists reference layers that the data bucket removed on 2026-09-25.",
+    "ignore": ["^[\\d,]+ (joined|active)$", "^\\d+ (days?|hours?|minutes?) left$"]
   },
   {
     "url": "https://hackapertus.devpost.com/rules",

@@ -147,6 +147,21 @@ export function normalizeHtml(html: string): string {
   return normalizeText(s)
 }
 
+/**
+ * Drops whole lines that match any of the page's public ignore patterns (e.g. live counters such
+ * as "1106 joined" or "21 days left"), so they do not create a new version on every check. The
+ * patterns are stored in the page entity's payload, so anyone verifying applies the same rule.
+ * Patterns are anchored by their author; invalid patterns are an error, not silently skipped.
+ */
+export function applyIgnore(text: string, patterns: readonly string[] = []): string {
+  if (patterns.length === 0) return text
+  const res = patterns.map((p) => new RegExp(p))
+  return text
+    .split("\n")
+    .filter((line) => !res.some((re) => re.test(line)))
+    .join("\n")
+}
+
 /** Whitespace/Unicode normalization for text that is already plain. Idempotent. */
 export function normalizeText(text: string): string {
   return text

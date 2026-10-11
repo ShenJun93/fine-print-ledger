@@ -39,8 +39,12 @@ can change. Every attribute below can be written by anyone, so none of them is a
 | `latestVersion` | u64 | latest snapshot version |
 | `latestContentHash` | str | contentHash of that version |
 
-Payload (`application/json`): `{ "url", "title", "event" }`.
-Flags: `permissionlessExtension`. Patched on every check (so not `readonly`).
+Payload (`application/json`): `{ "url", "title", "event", "ignore" }`. `ignore` is a public list of regular
+expressions; whole lines of normalized text matching one are dropped before hashing, so live counters such as
+"1106 joined" or "21 days left" do not create a new version on every check (used for the Zindi page). Because the
+patterns are on chain, anyone re-deriving a hash applies the same rule (`npm run snap -- verify` reads them from here),
+and anyone can see exactly what was excluded.
+Flags: `permissionlessExtension`. Patched on every check, attributes and payload (so not `readonly`).
 
 ### `snapshot`: what the page said at one fetch
 

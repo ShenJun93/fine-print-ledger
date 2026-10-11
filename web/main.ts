@@ -175,6 +175,7 @@ async function renderDetail() {
         <span title="Entity Expiration of the page watch. Each re-check renews it (Lifetime Extension).">watch lease ends ≈ ${esc(fmtDay(leaseEnd))} (block ${page.expiresAt})</span>
         ${creatorBadge(page.creator)}
       </div>
+      ${page.ignore.length ? `<div class="small muted" title="Lines matching these public patterns are dropped before hashing, so live counters do not create new versions.">Ignored lines: ${page.ignore.map((p) => `<code>${esc(p)}</code>`).join(" ")}</div>` : ""}
     </div>
 
     <form class="asof" id="asof">
