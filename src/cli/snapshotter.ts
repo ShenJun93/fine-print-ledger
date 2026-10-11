@@ -103,6 +103,32 @@ const json = (v: unknown) =>
 
 const iso = (s: number) => new Date(s * 1000).toISOString()
 
+/**
+ * SDK 0.8.1 reports e.g. an unfunded wallet as "Transaction failed: Execution error without revert
+ * data"; the node's actual reason sits several causes deep. Surface it. (arkiv/friction.md #3)
+ */
+function rootCause(e: unknown): string {
+  const parts: string[] = []
+  let c: unknown = e
+  for (let i = 0; c && i < 8; i++) {
+    const err = c as { message?: string; details?: string; cause?: unknown }
+    if (i === 0 && err.message) parts.push(err.message.split("\n")[0]!)
+    if (err.details && !parts.includes(err.details)) parts.push(err.details)
+    c = err.cause
+  }
+  return parts.join(" <- ")
+}
+
+/** Fail fast with a clear message instead of an opaque gas-estimation error. */
+async function requireFunds(client: PublicArkivClient, address: Hex) {
+  const balance = await client.getBalance({ address })
+  if (balance === 0n) {
+    throw new Error(
+      `snapshotter ${address} has 0 GLM on Tiramisu. Fund it from the faucet, or re-run with --dry-run.`,
+    )
+  }
+}
+
 // ---------------------------------------------------------------------------------------------
 // commands
 
@@ -160,6 +186,7 @@ async function snap(client: PublicArkivClient, url: string, event: string, dryRu
     console.log("  --dry-run: nothing written")
     return { plan: p }
   }
+  await requireFunds(client, addr)
   const w = wallet()
   const res = await w.executeBatch(p.batch)
   console.log(`  tx ${res.txHash}  ${explorerTxUrl(res.txHash)}`)
@@ -190,8 +217,8 @@ async function seed(client: PublicArkivClient, dryRun: boolean) {
       const r = await snap(client, t.url, t.event, dryRun)
       results.push({ url: t.url, kind: r.plan.kind, version: r.plan.version, tx: "tx" in r ? r.tx : undefined })
     } catch (e) {
-      console.error(`  FAILED ${t.url}: ${(e as Error).message}`)
-      results.push({ url: t.url, error: (e as Error).message })
+      console.error(`  FAILED ${t.url}: ${rootCause(e)}`)
+      results.push({ url: t.url, error: rootCause(e) })
     }
   }
   console.log(`\n${json(results)}`)
@@ -271,7 +298,9 @@ async function cite(client: PublicArkivClient, snapshotKey: Hex, note: string, d
   console.log(`cite v${s.version} of ${s.urlHash}; extends snapshot + ${diffs.length} diff(s)`)
   console.log(json(describeBatch(batch)))
   if (dryRun) return console.log("--dry-run: nothing written")
-  const res = await wallet().executeBatch(batch)
+  const w = wallet()
+  await requireFunds(client, w.account.address)
+  const res = await w.executeBatch(batch)
   console.log(`tx ${res.txHash}  ${explorerTxUrl(res.txHash)}  citation ${res.createdEntities[0]}`)
 }
 
@@ -323,6 +352,6 @@ async function main() {
 }
 
 main().catch((e) => {
-  console.error(`error: ${(e as Error).message}`)
+  console.error(`error: ${rootCause(e)}`)
   process.exit(1)
 })
