@@ -136,8 +136,13 @@ Windows 11, Tiramisu testnet (chain 7738577), 2026-10-11.
 - **Expected:** this is documented (`toValue`: number → `i32`), but it is easy to miss when the attribute was written as
   `u64` (needed for unix timestamps past 2038 and for consistency).
 - **Actual:** `eq("version", 3).toString()` is `version = i32(3)`, while `eq("version", u64(3)).toString()` is
-  `version = u64(3)`. Not yet verified on chain whether an `i32` literal matches a `u64` value; we will add the result
-  here once the snapshotter has written entities.
+  `version = u64(3)`. Verified on Tiramisu after our seed (2026-10-11, block ~416,300): with our 5 snapshots stored as
+  `version = u64(1)`, `app = "fpl" AND type = "snapshot" AND version = u64(1)` + `createdBy(snapshotter)` returns
+  **5 rows**, the same query with a bare `1` (`version = i32(1)`) returns **0 rows**, with no error or warning. A
+  forgotten `u64()` silently empties a page of the UI.
+- **Repro:** [`scripts/readback.ts`](../scripts/readback.ts) (last block of the script), read-only.
+- **Fix:** have the node either match numeric literals across integer types, or reject a comparison whose literal type
+  differs from the stored type for that name (it knows the stored type from `attributeSchema`).
 - **What we did:** every numeric attribute and every numeric literal in queries goes through `u64()`
   ([`rangeFilter` in `src/core/queries.ts`](../src/core/queries.ts)), and a unit test pins the rendered strings.
 
@@ -173,6 +178,9 @@ Windows 11, Tiramisu testnet (chain 7738577), 2026-10-11.
 | Typed `select()` | `client.select({...} as const)` with TypeScript 7.0.2 | result narrowed to the selected fields | Worked, including `toText`/`toJson` only when `payload` is selected. |
 | Query builder `toString()` | compared with what we display | identical to what is sent | Worked; a unit test asserts `builder.toString() === queryText(spec)`. |
 
-Still to test once the snapshotter wallet is funded (results will be added here, not assumed): batch writes with
-predicted keys landing as predicted, `readonly` + `permissionlessExtension` flags read back, Lifetime Extension by a second
-wallet, cursor pagination over more than 50 rows, and the `i32` vs `u64` match from entry 7.
+| Batch writes + `predictEntityKeys` | `seed` on 2026-10-11: 5 `executeBatch` calls, each creating `page` + `snapshot`, salts from `predictEntityKeys` | created keys equal the predicted keys | Worked: all 10 created keys equal the predicted ones (the CLI compares them); all 5 receipts `status=success`; the explorer shows both creates per transaction with attributes and lifetimes (30 d / 180 d). |
+| Creation flags read back | `select({ creationFlags: true })` on the seeded entities | snapshots `readonly` + `permissionlessExtension`, pages `permissionlessExtension` only | Worked, as written (`scripts/readback.ts`). |
+| Payload round trip | re-hash every snapshot payload read back from a query, in Node and in Chrome | sha256 equals the `content_hash` attribute | Worked for all 5. |
+
+Still to test (results will be added here, not assumed): Lifetime Extension by a second wallet (citation), a
+changed page producing a diff batch, and cursor pagination over more than 50 rows.
