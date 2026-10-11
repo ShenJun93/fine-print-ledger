@@ -195,6 +195,8 @@ Windows 11, Tiramisu testnet (chain 7738577), 2026-10-11.
 - **Fix:** document the keyless budget and the per-query cost; have the SDK's default transport fail fast on
   `ANON_COST_LIMITED` (or cap the retry delay) with a typed error that carries the reset time; return the limit as a
   JSON-RPC error so clients that parse JSON-RPC see it.
+- **Reported upstream:** [Arkiv-Network/reported-issues#17](https://github.com/Arkiv-Network/reported-issues/issues/17)
+  (2026-10-11), after searching the Arkiv repos for an existing report.
 - **What we did:** the web app uses `retryCount: 0` and turns a 429 anywhere in the cause chain into a banner with the
   reset time (`rateLimitedFor` in [`src/core/client.ts`](../src/core/client.ts)); it now fails in 0.6 s instead of
   hanging. It caches page details per tab, so a visitor uses about 4 queries to open the app and 3 per page. The CLI
