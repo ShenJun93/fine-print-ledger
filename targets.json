@@ -1,0 +1,27 @@
+[
+  {
+    "url": "https://zindi.world/competitions/bias-bounty-mapping-equity-challenge/data",
+    "event": "zindi-bias-bounty-mapping-equity",
+    "why": "The data page still lists reference layers that the data bucket removed on 2026-09-25."
+  },
+  {
+    "url": "https://hackapertus.devpost.com/rules",
+    "event": "hackapertus",
+    "why": "Devpost official rules page; organisers can edit it during the contest."
+  },
+  {
+    "url": "https://arkiv.devfolio.co/overview",
+    "event": "arkiv-global-tour-stop",
+    "why": "The Devfolio page is the official source for this challenge's rules (RULES.md section 1)."
+  },
+  {
+    "url": "https://airwallex.hackerearth.com/",
+    "event": "airwallex-agentic-banking",
+    "why": "HackerEarth landing page with prize and eligibility terms."
+  },
+  {
+    "url": "https://www.zacharygoodsell.com/ai-philosophy-competition-rules.html",
+    "event": "ai-philosophy-competition",
+    "why": "Self-hosted competition rules page with no public change history."
+  }
+]

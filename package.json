@@ -1,0 +1,32 @@
+{
+  "name": "fine-print-ledger",
+  "version": "1.0.0",
+  "description": "Snapshots public contest rules/terms pages onto Arkiv so anyone can verify what a page said, and when it changed.",
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "snap": "tsx src/cli/snapshotter.ts",
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "keywords": [],
+  "type": "module",
+  "dependencies": {
+    "@arkiv-network/sdk": "^0.8.1",
+    "diff": "^9.0.0",
+    "viem": "^2.57.4"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.5",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.4",
+    "vitest": "^5.0.3"
+  },
+  "license": "MIT",
+  "private": true,
+  "engines": {
+    "node": ">=20"
+  }
+}
