@@ -52,7 +52,7 @@ Requirements: Node 20 or newer (tested on 24.20.0).
 
 ```sh
 npm install
-npm test            # 28 unit tests, no network
+npm test            # 29 unit tests, no network
 npm run typecheck
 ```
 

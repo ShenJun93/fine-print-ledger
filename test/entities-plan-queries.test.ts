@@ -270,3 +270,14 @@ describe("queries (built offline; no request is sent)", () => {
     expect(cmd).toContain(JSON.stringify(queryText(spec)).slice(1, -1).replaceAll("'", "'\\''"))
   })
 })
+
+describe("capDiff", () => {
+  it("leaves small diffs alone and truncates large ones under the cap with a marker", async () => {
+    const { capDiff } = await import("../src/core/plan")
+    expect(capDiff("--- v1\n+++ v2\n+a\n")).toBe("--- v1\n+++ v2\n+a\n")
+    const big = `--- v1\n+++ v2\n${"+clause text that changed\n".repeat(10_000)}`
+    const capped = capDiff(big, 4096)
+    expect(new TextEncoder().encode(capped).length).toBeLessThanOrEqual(4096)
+    expect(capped.endsWith("compare the two full snapshots\n")).toBe(true)
+  })
+})

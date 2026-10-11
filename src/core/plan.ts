@@ -26,6 +26,7 @@ import {
   type SnapshotRecord,
 } from "./entities"
 import { byteLength, canonicalUrl, domainOf, sha256Hex, urlHash as hashUrl } from "./hash"
+import { GZIP_THRESHOLD_BYTES } from "./config"
 import { encodeText } from "./payload"
 
 type Hex = `0x${string}`
@@ -169,7 +170,7 @@ export async function planCheck(input: CheckInput, predicted: PredictedKey[] = [
         removedLines: diff.removedLines,
         fromSnapshot: latest.record.key,
         toSnapshot: snapshotKey,
-        unified: diff.unified,
+        unified: capDiff(diff.unified),
         salt: predicted[1]?.salt,
       }),
     )
@@ -193,6 +194,18 @@ export async function planCheck(input: CheckInput, predicted: PredictedKey[] = [
     createCount: creates.length,
     batch: { creates, patches, extensions },
   }
+}
+
+/**
+ * Keeps a diff payload under the engine's 128 KiB cap. Both full snapshots are on chain, so a
+ * truncated diff loses nothing that cannot be recomputed; the marker says so.
+ */
+export function capDiff(unified: string, maxBytes: number = GZIP_THRESHOLD_BYTES): string {
+  if (byteLength(unified) <= maxBytes) return unified
+  const marker = "\n\\ diff truncated by Fine Print Ledger; compare the two full snapshots\n"
+  let cut = unified.slice(0, maxBytes)
+  while (byteLength(cut) + byteLength(marker) > maxBytes) cut = cut.slice(0, cut.length - 1024)
+  return cut.slice(0, cut.lastIndexOf("\n") + 1) + marker.slice(1)
 }
 
 /** A JSON-safe view of a batch for --dry-run output and logs (payloads summarized). */
