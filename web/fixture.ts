@@ -78,6 +78,8 @@ export class FixtureSource implements DataSource {
     this.ran = []
   }
 
+  invalidate() {}
+
   private async build() {
     const url = "https://example.org/demo-cup/rules"
     const block = 400_000n

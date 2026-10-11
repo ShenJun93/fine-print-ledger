@@ -10,6 +10,7 @@ Source of truth in code: [`src/core/entities.ts`](../src/core/entities.ts) (buil
 |---|---|---|
 | `0x517bf78c3000991FFbCdf06305F3881382437e98` | Snapshotter (the only trusted `$creator`) | `page`, `snapshot`, `diff`; renews page leases |
 | Any wallet | Participant / reader | `citation`; Lifetime Extension of snapshots and diffs (they carry `permissionlessExtension`) |
+| `0xa669dB316c4641dBC1CC7EA86D4141887b561838` | Our test participant wallet (a second, independent key) | one `citation` of the Arkiv rules snapshot, extending it to 365 d (tx `0x1187c719…31fc`) |
 
 The web app trusts an entity only through its `$creator`, which the chain sets at creation and nobody
 can change. Every attribute below can be written by anyone, so none of them is a trust signal on its own.

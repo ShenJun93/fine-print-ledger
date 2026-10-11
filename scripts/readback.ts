@@ -5,6 +5,7 @@
  *
  *   npx tsx scripts/readback.ts [txHash ...]
  */
+import { existsSync } from "node:fs"
 import { u64 } from "@arkiv-network/sdk"
 import { eq } from "@arkiv-network/sdk/query"
 import type { Hex } from "viem"
@@ -15,6 +16,7 @@ import { sha256Hex } from "../src/core/hash"
 import { decodeText } from "../src/core/payload"
 import { fetchAll, pagesQuery, queryText, snapshotsQuery, type TrustMode } from "../src/core/queries"
 
+if (existsSync(".env.local")) process.loadEnvFile(".env.local") // ARKIV_ACCESS_KEY, if set
 const client = httpClient()
 const trust: TrustMode = { kind: "trusted", creators: [...DEFAULT_TRUSTED_SNAPSHOTTERS] }
 const timing = await client.getBlockTiming()

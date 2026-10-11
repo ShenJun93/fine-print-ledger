@@ -15,6 +15,7 @@
  */
 import { existsSync, readFileSync } from "node:fs"
 import { resolve } from "node:path"
+import { parseEnv } from "node:util"
 import { createWalletClient, type PublicArkivClient } from "@arkiv-network/sdk"
 import { tiramisu } from "@arkiv-network/sdk/chains"
 import { formatEther, type Hex, http } from "viem"
@@ -70,9 +71,19 @@ function parseArgs(argv: string[]): Args {
   return out
 }
 
+/**
+ * Loads `.env.local`, or the file named by FPL_ENV_FILE (e.g. `.env.citer` for a second wallet).
+ * With FPL_ENV_FILE, only ARKIV_ACCESS_KEY is still taken from `.env.local` (a read quota, not a
+ * signer), so the wallet key always comes from the chosen file.
+ */
 function loadEnv(): void {
-  const file = resolve(process.cwd(), ".env.local")
-  if (existsSync(file) && typeof process.loadEnvFile === "function") process.loadEnvFile(file)
+  const main = resolve(process.cwd(), ".env.local")
+  const file = process.env.FPL_ENV_FILE ? resolve(process.cwd(), process.env.FPL_ENV_FILE) : main
+  if (existsSync(file)) process.loadEnvFile(file)
+  if (file !== main && existsSync(main) && !process.env.ARKIV_ACCESS_KEY) {
+    const key = parseEnv(readFileSync(main, "utf8")).ARKIV_ACCESS_KEY
+    if (key) process.env.ARKIV_ACCESS_KEY = key
+  }
 }
 
 function trustedCreators(): Hex[] {
@@ -88,7 +99,9 @@ function wallet() {
   const pk = process.env.ARKIV_PRIVATE_KEY?.trim()
   if (!pk) throw new Error("ARKIV_PRIVATE_KEY is not set (put it in .env.local; never commit it)")
   const account = privateKeyToAccount((pk.startsWith("0x") ? pk : `0x${pk}`) as Hex)
-  return createWalletClient({ chain: tiramisu, transport: http(TIRAMISU.http), account })
+  const key = process.env.ARKIV_ACCESS_KEY?.trim()
+  const transport = key ? http(TIRAMISU.http, { fetchOptions: { headers: { "X-API-KEY": key } } }) : http(TIRAMISU.http)
+  return createWalletClient({ chain: tiramisu, transport, account })
 }
 
 /** The snapshotter's address, from the key if present, else the configured trusted address. */

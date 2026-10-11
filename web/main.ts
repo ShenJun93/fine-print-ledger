@@ -1,5 +1,5 @@
 import type { EntityEvent, PublicArkivClient } from "@arkiv-network/sdk"
-import { httpClient, wsClient } from "../src/core/client"
+import { httpClient, rateLimitedFor, wsClient } from "../src/core/client"
 import {
   APP,
   DEFAULT_TRUSTED_SNAPSHOTTERS,
@@ -32,7 +32,8 @@ const TRUSTED: Hex[] = (
 const params = new URLSearchParams(location.search)
 const FIXTURE = params.has("fixture")
 
-const client: PublicArkivClient | undefined = FIXTURE ? undefined : httpClient()
+// retryCount 0: on HTTP 429 viem would otherwise wait out Retry-After (tens of minutes) in silence.
+const client: PublicArkivClient | undefined = FIXTURE ? undefined : httpClient(TIRAMISU.http, undefined, { retryCount: 0 })
 const source: DataSource = FIXTURE ? new FixtureSource() : new ArkivSource(client!)
 
 // ---------------------------------------------------------------------------------------------
@@ -91,6 +92,14 @@ function safeHttpUrl(u: string): string | undefined {
 function creatorBadge(creator: string) {
   const ok = isTrusted(creator)
   return `<a class="badge ${ok ? "ok" : "bad"}" href="${esc(explorerAddressUrl(creator))}" target="_blank" rel="noopener noreferrer" title="$creator ${esc(creator)}">${ok ? "trusted" : "UNTRUSTED"} · ${esc(short(creator, 4))}</a>`
+}
+
+/** A read error as banner HTML; the public RPC's anonymous budget gets its own explanation. */
+function readErrorHtml(e: unknown): string {
+  const wait = rateLimitedFor(e)
+  if (wait === undefined) return `Could not read from Arkiv: ${esc((e as Error).message.split("\n")[0])}`
+  const mins = Math.max(1, Math.ceil(wait / 60))
+  return `The public Tiramisu RPC has used up its anonymous query budget for your network (keyless reads: about 100 queries per hour per IP). It resets in about ${mins} min. This app has no backend and ships no access key, so it reads only what your browser may read. Meanwhile, the <a href="?fixture=1">offline demo</a> shows the same UI, and the README's terminal commands read the same data with your own access key.`
 }
 
 function banner(html: string, kind: "info" | "warn" | "error" = "info") {
@@ -380,7 +389,7 @@ async function loadPages() {
     else if (!state.selected && state.pages[0]) await select(state.pages[0].urlHash)
     else renderVerify()
   } catch (e) {
-    banner(`Could not read from Arkiv: ${esc((e as Error).message.split("\n")[0])}`, "error")
+    banner(readErrorHtml(e), "error")
     renderVerify()
   }
 }
@@ -395,7 +404,12 @@ async function select(urlHash: string, keepVersion = false) {
   renderPages()
   // keep the page-list query in the verify panel, drop the previous page's queries
   source.ran = source.ran.filter((r) => r.spec.name === "Watched pages")
-  state.detail = await source.detail(urlHash, trust())
+  try {
+    state.detail = await source.detail(urlHash, trust())
+  } catch (e) {
+    banner(readErrorHtml(e), "error")
+    return
+  }
   if (state.version === undefined) {
     const top = state.detail.snapshots.find((s) => isTrusted(s.creator)) ?? state.detail.snapshots[0]
     state.version = top?.version
@@ -407,7 +421,13 @@ async function select(urlHash: string, keepVersion = false) {
 
 async function lookupAsOf(at: number) {
   if (!state.selected) return
-  const result = await source.asOf(state.selected, at, trust())
+  let result: SnapshotRecord | undefined
+  try {
+    result = await source.asOf(state.selected, at, trust())
+  } catch (e) {
+    banner(readErrorHtml(e), "error")
+    return
+  }
   state.asOf = { at, result }
   await renderDetail()
 }
@@ -419,6 +439,7 @@ async function cite_(s: SnapshotRecord) {
     banner("Waiting for your wallet…")
     const res = await citeWithWallet(s, state.detail?.diffs ?? [], note.slice(0, 280))
     banner(`Citation written: <a href="${esc(explorerTxUrl(res.txHash))}" target="_blank" rel="noopener noreferrer">${esc(short(res.txHash, 8))}</a>. The snapshot's lifetime was extended.`)
+    source.invalidate()
     if (state.selected) await select(state.selected, true)
   } catch (e) {
     banner(`Citation failed: ${esc((e as Error).message.split("\n")[0])}`, "error")
@@ -449,7 +470,10 @@ function startLive() {
   let refreshTimer: ReturnType<typeof setTimeout> | undefined
   const scheduleRefresh = () => {
     clearTimeout(refreshTimer)
-    refreshTimer = setTimeout(() => void loadPages(), 1500)
+    refreshTimer = setTimeout(() => {
+      source.invalidate()
+      void loadPages()
+    }, 1500)
   }
   const known = () =>
     new Set(

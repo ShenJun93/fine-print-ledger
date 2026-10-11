@@ -40,6 +40,8 @@ export interface DataSource {
   /** Every query run since the last reset, for the "verify it yourself" panel. */
   ran: Ran[]
   resetRan(): void
+  /** Forget cached reads (the live feed calls this when the snapshotter writes). */
+  invalidate(): void
 }
 
 const byVersionDesc = (a: SnapshotRecord, b: SnapshotRecord) => b.version - a.version || b.fetchedAt - a.fetchedAt
@@ -47,10 +49,19 @@ const byVersionDesc = (a: SnapshotRecord, b: SnapshotRecord) => b.version - a.ve
 export class ArkivSource implements DataSource {
   readonly label = "Arkiv Tiramisu (live)"
   ran: Ran[] = []
+  /**
+   * Page details already read in this tab. Every query costs the same on the public RPC, and a
+   * keyless browser gets about 100 per hour, so re-opening a page must not re-query it.
+   */
+  private cache = new Map<string, { detail: PageDetail; ran: Ran[] }>()
   constructor(private readonly client: PublicArkivClient) {}
 
   resetRan() {
     this.ran = []
+  }
+
+  invalidate() {
+    this.cache.clear()
   }
 
   private async run(spec: QuerySpec, withPayload: boolean): Promise<Entity[]> {
@@ -65,16 +76,25 @@ export class ArkivSource implements DataSource {
   }
 
   async detail(urlHash: string, trust: TrustMode): Promise<PageDetail> {
+    const cacheKey = `${urlHash}|${JSON.stringify(trust)}`
+    const hit = this.cache.get(cacheKey)
+    if (hit) {
+      this.ran.push(...hit.ran)
+      return hit.detail
+    }
+    const before = this.ran.length
     const [s, d, c] = await Promise.all([
       this.run(snapshotsQuery(urlHash, trust), true),
       this.run(diffsQuery(urlHash, trust), true),
       this.run(citationsQuery(urlHash), true),
     ])
-    return {
+    const detail = {
       snapshots: s.map(decodeSnapshot).sort(byVersionDesc),
       diffs: d.map(decodeDiff).sort((a, b) => b.toVersion - a.toVersion),
       citations: c.map(decodeCitation).sort((a, b) => b.citedAt - a.citedAt),
     }
+    this.cache.set(cacheKey, { detail, ran: this.ran.slice(before) })
+    return detail
   }
 
   async asOf(urlHash: string, at: number, trust: TrustMode) {

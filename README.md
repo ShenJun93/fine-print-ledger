@@ -52,11 +52,15 @@ Requirements: Node 20 or newer (tested on 24.20.0).
 
 ```sh
 npm install
-npm test            # 32 unit tests, no network
+npm test            # 35 unit tests, no network
 npm run typecheck
 ```
 
 ### Read-only (no wallet needed)
+
+Reads work without any key, but the public RPC gives keyless clients a small budget (about 100 queries per hour per
+IP on 2026-10-11; every query costs 100 of 10,000 units). For more, create an access key at https://hub.arkiv.network
+and put it in `.env.local` as `ARKIV_ACCESS_KEY=...`; the CLI sends it as an `X-API-KEY` header.
 
 ```sh
 npm run snap -- status                                   # chain, snapshotter balance, watched pages
@@ -82,6 +86,13 @@ npm run snap -- snap <url> --event <slug>                # one page
 npm run snap -- cite <snapshotKey> --note "rules on the day I registered"
 ```
 
+Citing from a second wallet (so the citation's `$creator` is not the snapshotter):
+
+```sh
+npx tsx scripts/second-wallet.ts 0.2      # creates git-ignored .env.citer, funds it with 0.2 GLM from .env.local's wallet
+FPL_ENV_FILE=.env.citer npm run snap -- cite <snapshotKey> --note "..."
+```
+
 Running `seed` again later re-checks every page: unchanged pages get their lease renewed; changed pages get a new
 snapshot and diff. To snapshot on a schedule, run `npm run snap -- seed` from cron or a CI job.
 
@@ -99,6 +110,10 @@ The build is a static site (Vite, no server code). `vercel.json` is included: im
 `dist/` from any static host. `?fixture=1` loads a synthetic, clearly labelled in-browser dataset built with the same
 entity builders, for development before the wallet is funded.
 
+The web app ships no access key (the Arkiv docs warn that a key in browser code can be read and spent by anyone), so it
+reads with the visitor's own keyless budget. If that budget is used up, it says so and when it resets, instead of
+waiting silently (see `arkiv/friction.md` #10). Page details are cached per tab, so revisiting a page costs nothing.
+
 ## Reproduce our Arkiv usage
 
 1. `npm install && npm test`.
@@ -108,6 +123,9 @@ entity builders, for development before the wallet is funded.
 5. `npm run snap -- verify <url>`: re-fetches the live page and tells you whether it still matches the latest snapshot.
 6. On the explorer, open the snapshotter address to see the creation transactions:
    https://tiramisu.explorer.arkiv.network/address/0x517bf78c3000991FFbCdf06305F3881382437e98
+7. A citation from a second wallet, `0xa669dB316c4641dBC1CC7EA86D4141887b561838`, pinned the Arkiv rules snapshot and
+   extended its lifetime from 2027-04-09 to 2027-10-11 while the snapshotter stays its owner:
+   https://tiramisu.explorer.arkiv.network/tx/0x1187c7192a0d63fb751887da0819c93b7b399dba15737f68beeb702d1ac431fc
 
 ## Layout
 

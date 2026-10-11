@@ -6,9 +6,43 @@ import { decodePage, decodeSnapshot, type PageRecord, type SnapshotRecord } from
 import { decodeText } from "./payload"
 import { fetchAll, pageByUrlHashQuery, snapshotByVersionQuery, snapshotsQuery, type TrustMode } from "./queries"
 
-/** Read-only client over HTTP. No key, no backend: this is all the web app needs to read. */
-export function httpClient(url: string = TIRAMISU.http): PublicArkivClient {
-  return createPublicClient({ chain: tiramisu, transport: http(url) }) as PublicArkivClient
+/**
+ * Read-only client over HTTP. Without a key it uses the public RPC's anonymous budget (on
+ * 2026-10-11: 10,000 cost units per window, about 100 queries). The CLI passes ARKIV_ACCESS_KEY
+ * as an X-API-KEY header (not in the URL, so it never shows up in error messages).
+ */
+export function httpClient(
+  url: string = TIRAMISU.http,
+  apiKey: string | undefined = nodeAccessKey(),
+  opts: { retryCount?: number } = {},
+): PublicArkivClient {
+  const transport = http(url, {
+    ...(apiKey ? { fetchOptions: { headers: { "X-API-KEY": apiKey } } } : {}),
+    ...(opts.retryCount === undefined ? {} : { retryCount: opts.retryCount }),
+  })
+  return createPublicClient({ chain: tiramisu, transport }) as PublicArkivClient
+}
+
+/**
+ * If an error (anywhere in its cause chain) is the public RPC's HTTP 429, the seconds until the
+ * anonymous budget resets (from Retry-After), else undefined. viem honours Retry-After when it
+ * retries, which on 2026-10-11 meant a silent ~40-minute wait; the web app sets retryCount 0 and
+ * reports the limit instead (friction.md #10).
+ */
+export function rateLimitedFor(e: unknown): number | undefined {
+  for (let c: unknown = e, i = 0; c && i < 10; c = (c as { cause?: unknown }).cause, i++) {
+    const err = c as { status?: number; headers?: Headers; body?: unknown; details?: string }
+    if (err.status === 429 || /ANON_COST_LIMITED/.test(String(err.details ?? ""))) {
+      const ra = Number(err.headers?.get?.("retry-after"))
+      return Number.isFinite(ra) && ra > 0 ? ra : 0
+    }
+  }
+  return undefined
+}
+
+/** ARKIV_ACCESS_KEY from the Node environment; always undefined in the browser. */
+function nodeAccessKey(): string | undefined {
+  return typeof process === "undefined" ? undefined : process.env?.ARKIV_ACCESS_KEY?.trim() || undefined
 }
 
 /**

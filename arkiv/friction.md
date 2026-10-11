@@ -164,6 +164,37 @@ Windows 11, Tiramisu testnet (chain 7738577), 2026-10-11.
 - **Actual:** not found in the docs we read; we read the routes `/entity/`, `/tx/`, `/address/` out of the explorer's JS bundle.
 - **Fix:** list them in the Tiramisu network page of the docs.
 
+## 10. When the keyless query budget runs out, the SDK waits out Retry-After in silence (about 40 minutes)
+
+- **Surface:** public RPC rate limiting, TypeScript SDK (through viem's `http` transport), Access keys docs.
+- **Versions:** `@arkiv-network/sdk` 0.8.1, `viem` 2.57.4, Node 24.20.0, Tiramisu, 2026-10-11.
+- **Expected:** when a keyless client runs out of budget, the call fails quickly with an error that says so, and the
+  docs state the keyless limit.
+- **Actual:** every `arkiv_query` costs 100 units (`arkiv-cost: 100`, also for a 2-row query and for one that fails to
+  parse), and a keyless IP gets 10,000 units, so about 100 queries per window. After that the RPC answers
+  `HTTP 429` with `retry-after: 2336` and the body
+  `{"error":"ANON_COST_LIMITED","message":"unauthenticated query budget exhausted; get an API key at https://hub.arkiv.network for a monthly quota"}`
+  (not a JSON-RPC error object). viem's transport honours `Retry-After` when it retries, so `client.query(...)` just
+  hangs: our read-back script and a `listPages()` call sat for over 100 s with one 429 in the log and no error. In a
+  browser app the page looks frozen for about 40 minutes. `eth_blockNumber` and `arkiv_getBlockTiming` (cost 0) keep
+  working, so an "is the RPC up?" check passes. The Access Keys page says keys "raise the rate limits" but gives no
+  numbers for either tier. We used up the budget for our own IP while developing (seed runs, read-backs, the web app
+  in dev).
+- **Repro:** run about 100 `arkiv_query` calls without a key from one IP, then:
+  ```sh
+  curl -s -D - https://rpc.tiramisu.db-chain.testnet.arkiv.network -H 'content-type: application/json' \
+    -d '{"jsonrpc":"2.0","id":1,"method":"arkiv_query","params":["type = \"page\"",{"select":{"key":true},"limit":"0x2"}]}'
+  ```
+  and the same query through `createPublicClient({ chain: tiramisu, transport: http() }).query()` with a timer.
+- **Fix:** document the keyless budget and the per-query cost; have the SDK's default transport fail fast on
+  `ANON_COST_LIMITED` (or cap the retry delay) with a typed error that carries the reset time; return the limit as a
+  JSON-RPC error so clients that parse JSON-RPC see it.
+- **What we did:** the web app uses `retryCount: 0` and turns a 429 anywhere in the cause chain into a banner with the
+  reset time (`rateLimitedFor` in [`src/core/client.ts`](../src/core/client.ts)); it now fails in 0.6 s instead of
+  hanging. It caches page details per tab, so a visitor uses about 4 queries to open the app and 3 per page. The CLI
+  sends `ARKIV_ACCESS_KEY` as an `X-API-KEY` header (never in the URL, so it cannot leak through an error message). We
+  did not add a server-side relay holding our key: anyone could spend its quota through it.
+
 ---
 
 ## Tested paths that worked
@@ -180,7 +211,9 @@ Windows 11, Tiramisu testnet (chain 7738577), 2026-10-11.
 
 | Batch writes + `predictEntityKeys` | `seed` on 2026-10-11: 5 `executeBatch` calls, each creating `page` + `snapshot`, salts from `predictEntityKeys` | created keys equal the predicted keys | Worked: all 10 created keys equal the predicted ones (the CLI compares them); all 5 receipts `status=success`; the explorer shows both creates per transaction with attributes and lifetimes (30 d / 180 d). |
 | Creation flags read back | `select({ creationFlags: true })` on the seeded entities | snapshots `readonly` + `permissionlessExtension`, pages `permissionlessExtension` only | Worked, as written (`scripts/readback.ts`). |
+| Lifetime Extension by another wallet | a second wallet (`0xa669…1838`) cites the Arkiv rules snapshot owned by the snapshotter, in one batch: create `citation` + extend the snapshot to 365 d (2026-10-11, tx `0x1187c719…31fc`) | allowed because the snapshot has `permissionlessExtension`; ownership unchanged | Worked: the citation's `$creator` is `0xa669…1838`; the snapshot's expiry moved from 2027-04-09 to 2027-10-11 and its owner is still `0x517b…7e98`. |
+| Access key as a header | `X-API-KEY: <key>` on every HTTP request from the CLI | quota taken from the key, not the IP | Worked; responses carry `arkiv-quota-used-percent`. |
 | Payload round trip | re-hash every snapshot payload read back from a query, in Node and in Chrome | sha256 equals the `content_hash` attribute | Worked for all 5. |
 
-Still to test (results will be added here, not assumed): Lifetime Extension by a second wallet (citation), a
-changed page producing a diff batch, and cursor pagination over more than 50 rows.
+Still to test (results will be added here, not assumed): a changed page producing a diff batch (we now also watch
+five Devpost announcement pages, which change often), and cursor pagination over more than 50 rows.
