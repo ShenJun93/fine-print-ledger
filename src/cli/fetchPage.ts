@@ -32,11 +32,15 @@ export async function fetchPage(input: string, ignore: readonly string[] = []): 
   const body = new TextDecoder("utf-8").decode(buf)
   const type = res.headers.get("content-type") ?? ""
   const isHtml = type.includes("html") || /<html[\s>]/i.test(body.slice(0, 2000))
+  const text = applyIgnore(isHtml ? normalizeHtml(body) : normalizeText(body), ignore)
+  if (!text.trim()) {
+    throw new Error(`GET ${url} -> normalized page text is empty; refusing a false snapshot (page may be blocked or JS-only)`)
+  }
   return {
     url,
     status: res.status,
     title: isHtml ? extractTitle(body) : "",
-    text: applyIgnore(isHtml ? normalizeHtml(body) : normalizeText(body), ignore),
+    text,
     fetchedAt,
   }
 }

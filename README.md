@@ -52,7 +52,7 @@ Requirements: Node 20 or newer (tested on 24.20.0).
 
 ```sh
 npm install
-npm test            # 35 unit tests, no network
+npm test            # offline unit tests, no network
 npm run typecheck
 ```
 
@@ -72,6 +72,10 @@ npm run snap -- watch                                    # live entity events ov
 
 `--dry-run` fetches and normalizes the page, reads the latest trusted snapshot from Arkiv, predicts the entity keys,
 and prints every attribute, flag and lifetime it would write, without signing anything.
+
+Safety gate: if a site returns HTTP 200 but no meaningful extractable text (for example a JavaScript-only
+or bot-blocked page), the snapshotter aborts instead of writing an empty snapshot and a misleading diff.
+Inspect the upstream page or restore the extractor before attempting a write; no original evidence is replaced.
 
 ### Writing snapshots
 

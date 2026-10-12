@@ -64,6 +64,8 @@ export type CheckPlan = {
 
 /** Pass 1: everything except entity keys. */
 export async function planCheck(input: CheckInput, predicted: PredictedKey[] = []): Promise<CheckPlan> {
+  // Fail closed: a blocked/JS-only fetch must never turn an existing rules page into an empty v2.
+  if (!input.text.trim()) throw new Error("Refusing an empty normalized page snapshot")
   const url = canonicalUrl(input.url)
   const uh = await hashUrl(url)
   const domain = domainOf(url)
